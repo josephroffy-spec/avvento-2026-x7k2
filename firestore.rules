@@ -78,8 +78,9 @@ service cloud.firestore {
       allow get: if giornoValido(n) && (admin() || (lei() && sbloccata(n)));
       allow list: if admin();
       allow create, update: if admin() && giornoValido(n)
-        && request.resource.data.keys().hasOnly(['titolo', 'messaggio', 'tipo', 'bottoneTesto', 'bottoneLink', 'haFoto', 'fotoV', 'aggiornatoIl'])
-        && request.resource.data.fotoV is number;
+        && request.resource.data.keys().hasOnly(['titolo', 'messaggio', 'tipo', 'bottoneTesto', 'bottoneLink', 'haFoto', 'fotoV', 'fotoCount', 'aggiornatoIl'])
+        && request.resource.data.fotoV is number
+        && (!('fotoCount' in request.resource.data) || (request.resource.data.fotoCount is int && request.resource.data.fotoCount >= 0 && request.resource.data.fotoCount <= 6));
       allow delete: if admin() && giornoValido(n);
     }
 
@@ -92,6 +93,20 @@ service cloud.firestore {
         && request.resource.data.dati is string
         && request.resource.data.dati.size() < 950000;
       allow delete: if admin() && giornoValido(n);
+    }
+
+    // Nuova galleria: una foto per documento, massimo sei slot numerati 0-5.
+    // Le immagini future non sono leggibili dalla destinataria prima dello sblocco.
+    match /gallerie/{n}/immagini/{i} {
+      allow get: if giornoValido(n) && i.matches('^[0-5]$')
+        && (admin() || (lei() && sbloccata(n)));
+      allow list: if false;
+      allow create, update: if admin() && giornoValido(n) && i.matches('^[0-5]$')
+        && request.resource.data.keys().hasOnly(['dati', 'v'])
+        && request.resource.data.v is number
+        && request.resource.data.dati is string
+        && request.resource.data.dati.size() < 900000;
+      allow delete: if admin() && giornoValido(n) && i.matches('^[0-5]$');
     }
 
     // Aperture: le registra solo lei (e solo se la casella e' sbloccata), le legge e le ripristina solo l'admin.

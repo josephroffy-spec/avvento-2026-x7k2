@@ -62,9 +62,9 @@
         </select>
       </label>
       <label>Messaggio <textarea id="aMessaggio" class="campo" rows="6" maxlength="3000"></textarea></label>
-      <label>Foto (dal telefono) <input type="file" id="aFile" accept="image/*" class="campo"></label>
-      <img id="aImg" class="prev" alt="Anteprima della foto" hidden>
-      <button id="aRimuovi" class="bottone piccolo chiaro" hidden>Rimuovi foto</button>
+      <label>Foto (fino a 6 per casella) <input type="file" id="aFile" accept="image/*" multiple class="campo"></label>
+      <p class="aiuto-foto">Seleziona più foto insieme oppure aggiungile in momenti diversi. Usa le frecce per cambiarne l’ordine.</p>
+      <div id="aGalleria" class="galleria-admin"></div>
       <label>Testo del pulsante (facoltativo) <input id="aBtnTesto" class="campo" maxlength="40"></label>
       <label>Indirizzo del pulsante (https://...) <input id="aBtnLink" class="campo" inputmode="url" maxlength="300"></label>
       <button id="aAnteprima" class="bottone piccolo chiaro">Anteprima</button>
@@ -108,7 +108,10 @@
   <div class="carta" id="carta">
     <small id="cData"></small>
     <h2 id="cTitolo"></h2>
-    <img id="cFoto" alt="Foto della sorpresa" hidden>
+    <div id="cGalleria" class="galleria-sorpresa" hidden>
+      <img id="cFoto" alt="Foto della sorpresa">
+      <div id="cNavigazione" class="navigazione-foto" hidden><button id="cPrecedente" type="button" aria-label="Foto precedente">&#10094;</button><span id="cContatore" aria-live="polite"></span><button id="cSuccessiva" type="button" aria-label="Foto successiva">&#10095;</button></div>
+    </div>
     <p id="cTesto"></p>
     <a id="cLink" class="bottone" target="_blank" rel="noopener" hidden></a>
     <button class="bottone" id="btnTorna">Torna al calendario</button>

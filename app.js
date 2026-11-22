@@ -154,17 +154,18 @@ let galleriaCorrente = [], indiceFoto = 0;
 function mostraIndiceFoto() {
   const nav = $('cNavigazione');
   const g = $('cGalleria');
+  if (!g || !$('cFoto')) return;
   g.hidden = !galleriaCorrente.length;
   if (!galleriaCorrente.length) { $('cFoto').removeAttribute('src'); return; }
   $('cFoto').src = galleriaCorrente[indiceFoto];
-  nav.hidden = galleriaCorrente.length < 2;
-  $('cContatore').textContent = (indiceFoto + 1) + ' / ' + galleriaCorrente.length;
+  if (nav) nav.hidden = galleriaCorrente.length < 2;
+  if ($('cContatore')) $('cContatore').textContent = (indiceFoto + 1) + ' / ' + galleriaCorrente.length;
 }
-$('cPrecedente').onclick = () => { indiceFoto = (indiceFoto + galleriaCorrente.length - 1) % galleriaCorrente.length; mostraIndiceFoto(); };
-$('cSuccessiva').onclick = () => { indiceFoto = (indiceFoto + 1) % galleriaCorrente.length; mostraIndiceFoto(); };
+if ($('cPrecedente')) $('cPrecedente').onclick = () => { indiceFoto = (indiceFoto + galleriaCorrente.length - 1) % galleriaCorrente.length; mostraIndiceFoto(); };
+if ($('cSuccessiva')) $('cSuccessiva').onclick = () => { indiceFoto = (indiceFoto + 1) % galleriaCorrente.length; mostraIndiceFoto(); };
 let xInizio = null;
-$('cFoto').addEventListener('touchstart', e => { xInizio = e.touches[0]?.clientX ?? null; }, {passive:true});
-$('cFoto').addEventListener('touchend', e => {
+$('cFoto')?.addEventListener('touchstart', e => { xInizio = e.touches[0]?.clientX ?? null; }, {passive:true});
+$('cFoto')?.addEventListener('touchend', e => {
   if (xInizio === null || galleriaCorrente.length < 2) return;
   const dx = (e.changedTouches[0]?.clientX ?? xInizio) - xInizio; xInizio = null;
   if (Math.abs(dx) > 40) { indiceFoto = (indiceFoto + (dx < 0 ? 1 : -1) + galleriaCorrente.length) % galleriaCorrente.length; mostraIndiceFoto(); }
@@ -339,7 +340,7 @@ function datiForm() {
   return { titolo: $('aTitolo').value.trim(), messaggio: $('aMessaggio').value.trim(), tipo: $('aTipo').value, bottoneTesto: $('aBtnTesto').value.trim(), bottoneLink: $('aBtnLink').value.trim() };
 }
 function mostraFotoAdmin() {
-  const box = $('aGalleria'); box.replaceChildren();
+  const box = $('aGalleria'); if (!box) return; box.replaceChildren();
   fotoAdmin.forEach((src, i) => {
     const scheda = document.createElement('div'); scheda.className = 'foto-admin-item';
     const im = document.createElement('img'); im.src = src; im.alt = 'Foto ' + (i+1); scheda.appendChild(im);

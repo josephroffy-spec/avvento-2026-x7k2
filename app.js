@@ -149,6 +149,30 @@ function cuori(n, box) {
     setTimeout(() => s.remove(), 1800);
   }
 }
+const MAX_FOTO = 6;
+let galleriaCorrente = [], indiceFoto = 0;
+function mostraIndiceFoto() {
+  const nav = $('cNavigazione');
+  const g = $('cGalleria');
+  g.hidden = !galleriaCorrente.length;
+  if (!galleriaCorrente.length) { $('cFoto').removeAttribute('src'); return; }
+  $('cFoto').src = galleriaCorrente[indiceFoto];
+  nav.hidden = galleriaCorrente.length < 2;
+  $('cContatore').textContent = (indiceFoto + 1) + ' / ' + galleriaCorrente.length;
+}
+$('cPrecedente').onclick = () => { indiceFoto = (indiceFoto + galleriaCorrente.length - 1) % galleriaCorrente.length; mostraIndiceFoto(); };
+$('cSuccessiva').onclick = () => { indiceFoto = (indiceFoto + 1) % galleriaCorrente.length; mostraIndiceFoto(); };
+let xInizio = null;
+$('cFoto').addEventListener('touchstart', e => { xInizio = e.touches[0]?.clientX ?? null; }, {passive:true});
+$('cFoto').addEventListener('touchend', e => {
+  if (xInizio === null || galleriaCorrente.length < 2) return;
+  const dx = (e.changedTouches[0]?.clientX ?? xInizio) - xInizio; xInizio = null;
+  if (Math.abs(dx) > 40) { indiceFoto = (indiceFoto + (dx < 0 ? 1 : -1) + galleriaCorrente.length) % galleriaCorrente.length; mostraIndiceFoto(); }
+}, {passive:true});
+function visualizzaFoto(foto) {
+  galleriaCorrente = Array.isArray(foto) ? foto.filter(Boolean) : (foto ? [foto] : []);
+  indiceFoto = 0; mostraIndiceFoto();
+}
 function riempi(n, d, foto) {
   d = d || {};
   const tipo = d.tipo || 'messaggio';
@@ -156,8 +180,7 @@ function riempi(n, d, foto) {
   $('cTitolo').textContent = d.titolo || (n === 24 ? 'Buon Natale, amore mio' : 'La sorpresa di oggi');
   $('cTesto').textContent = tipo === 'foto' ? '' : (d.messaggio || 'Qui apparirà la sorpresa del giorno ' + n + ' \u2764\uFE0F');
   $('cTesto').hidden = !$('cTesto').textContent;
-  const im = $('cFoto'); im.hidden = true; im.removeAttribute('src');
-  if (foto) { im.src = foto; im.hidden = false; }
+  visualizzaFoto(foto);
   const l = $('cLink'); l.hidden = true;
   if (d.bottoneTesto && /^https?:\/\//i.test(d.bottoneLink || '')) { l.textContent = d.bottoneTesto; l.href = d.bottoneLink; l.hidden = false; }
 }
@@ -171,8 +194,18 @@ function mostraCarta(n, d, foto, anteprima) {
   setTimeout(() => { regalo.classList.add('apri'); cuori(n === 24 ? 30 : 16, s); }, 350);
   setTimeout(() => carta.classList.add('entra'), 900);
 }
+const rifFoto = (n, i) => S.doc(db, 'gallerie', String(n), 'immagini', String(i));
 async function caricaFoto(n, d) {
-  try { const f = await leggi('foto', n); return f && f.v === d.fotoV ? f.dati : null; } catch (e) { return null; }
+  if (!d || !d.haFoto) return [];
+  if (Number.isInteger(d.fotoCount) && d.fotoCount > 0) {
+    if (d.fotoCount > MAX_FOTO) throw new Error('Galleria troppo grande');
+    const docs = await Promise.all(Array.from({length:d.fotoCount}, (_,i) => S.getDocFromServer(rifFoto(n,i))));
+    if (docs.some(x => !x.exists() || x.data().v !== d.fotoV || !x.data().dati)) throw new Error('Galleria non completa');
+    return docs.map(x=>x.data().dati);
+  }
+  // Compatibilita' con le foto salvate prima dell'aggiornamento.
+  const f = await leggi('foto', n);
+  return f && f.v === d.fotoV ? [f.dati] : [];
 }
 
 /* l'apertura risulta registrata (cuoricino) solo se Firestore ha confermato il salvataggio */
@@ -196,7 +229,7 @@ async function apri(n, el) {
   }
   mostraCarta(n, st.dati, null, false);
   if (st.dati && st.dati.haFoto) {
-    caricaFoto(n, st.dati).then((src) => { if (src && cartaN === n && $('sorpresa').classList.contains('visibile')) { $('cFoto').src = src; $('cFoto').hidden = false; } });
+    caricaFoto(n, st.dati).then((foto) => { if (cartaN === n && $('sorpresa').classList.contains('visibile')) visualizzaFoto(foto); }).catch(() => avviso('Non riesco a caricare le foto. Controlla la connessione.'));
   }
   if (!sonoAdmin() && !visti[n]) registraApertura(n);
 }
@@ -300,24 +333,39 @@ $('formAccesso').onsubmit = async (ev) => {
 };
 
 /* ---------- amministrazione ---------- */
-let fotoAdmin = null, fotoCambiata = false, fotoV = 0, fotoSuServer = false, salvando = false, adminPronto = false;
+let fotoAdmin = [], fotoCambiata = false, fotoV = 0, fotoCount = 0, legacyFoto = false, salvando = false, adminPronto = false;
 const num = () => $('aNum').value;
 function datiForm() {
   return { titolo: $('aTitolo').value.trim(), messaggio: $('aMessaggio').value.trim(), tipo: $('aTipo').value, bottoneTesto: $('aBtnTesto').value.trim(), bottoneLink: $('aBtnLink').value.trim() };
 }
 function mostraFotoAdmin() {
-  $('aImg').hidden = !fotoAdmin; $('aRimuovi').hidden = !fotoAdmin;
-  if (fotoAdmin) $('aImg').src = fotoAdmin;
+  const box = $('aGalleria'); box.replaceChildren();
+  fotoAdmin.forEach((src, i) => {
+    const scheda = document.createElement('div'); scheda.className = 'foto-admin-item';
+    const im = document.createElement('img'); im.src = src; im.alt = 'Foto ' + (i+1); scheda.appendChild(im);
+    const bottoni = document.createElement('div'); bottoni.className = 'foto-admin-azioni';
+    [['←',()=>spostaFoto(i,-1),'Sposta indietro'],['→',()=>spostaFoto(i,1),'Sposta avanti'],['×',()=>{fotoAdmin.splice(i,1);fotoCambiata=true;mostraFotoAdmin();},'Rimuovi foto']].forEach(([testo,azione,aria]) => {
+      const b = document.createElement('button'); b.type='button'; b.textContent=testo; b.setAttribute('aria-label',aria);
+      b.disabled = (testo==='←' && i===0) || (testo==='→' && i===fotoAdmin.length-1);
+      b.onclick=azione; bottoni.appendChild(b);
+    });
+    scheda.appendChild(bottoni); box.appendChild(scheda);
+  });
+  const p = document.createElement('p'); p.className = 'aiuto-foto'; p.textContent = fotoAdmin.length + ' / ' + MAX_FOTO + ' foto'; box.appendChild(p);
 }
+function spostaFoto(i, passo) { const j=i+passo; if (j<0||j>=fotoAdmin.length) return; [fotoAdmin[i],fotoAdmin[j]]=[fotoAdmin[j],fotoAdmin[i]]; fotoCambiata=true; mostraFotoAdmin(); }
+let caricamentoForm = 0;
 async function caricaForm() {
+  const id=++caricamentoForm;
   try {
-    const d = (await leggi('caselle', num())) || {};
+    const n=num(), d = (await leggi('caselle', n)) || {};
+    const foto = d.haFoto ? await caricaFoto(n,d) : [];
+    if (id !== caricamentoForm || n !== num()) return;
     $('aTitolo').value = d.titolo || ''; $('aMessaggio').value = d.messaggio || ''; $('aTipo').value = d.tipo || 'messaggio';
     $('aBtnTesto').value = d.bottoneTesto || ''; $('aBtnLink').value = d.bottoneLink || '';
-    fotoV = d.fotoV || 0; fotoAdmin = null; fotoSuServer = false; fotoCambiata = false; $('aFile').value = '';
-    if (fotoV) { const f = await leggi('foto', num()); if (f && f.v === fotoV) { fotoAdmin = f.dati; fotoSuServer = true; } }
-    mostraFotoAdmin();
-  } catch (e) { avviso('Non riesco a leggere la casella. Controlla la connessione.'); }
+    fotoV = d.fotoV || 0; fotoCount = d.fotoCount || 0; legacyFoto = !!(d.haFoto && !fotoCount);
+    fotoAdmin = foto; fotoCambiata = false; $('aFile').value = ''; mostraFotoAdmin();
+  } catch (e) { if (id === caricamentoForm) avviso('Non riesco a leggere la casella o le sue foto. Controlla la connessione.'); }
 }
 function ridimensiona(file) {
   return new Promise((ok, ko) => {
@@ -411,37 +459,48 @@ function iniziaAdmin() {
   $('generaInvito').onclick = generaInvito;
   $('copiaInvito').onclick = () => { if (ultimoInvito) navigator.clipboard.writeText(ultimoInvito).then(() => avviso('Codice copiato.')).catch(() => avviso('Seleziona il codice e copialo manualmente.')); };
   $('aFile').onchange = async () => {
-    const f = $('aFile').files[0]; if (!f) return;
-    try { fotoAdmin = await ridimensiona(f); fotoCambiata = true; mostraFotoAdmin(); }
-    catch (e) { avviso('Foto non valida o troppo grande. Riprova con un\'altra.'); }
+    const file = Array.from($('aFile').files); $('aFile').value = '';
+    if (!file.length) return;
+    if (fotoAdmin.length + file.length > MAX_FOTO) { avviso('Puoi inserire al massimo ' + MAX_FOTO + ' foto per casella.'); return; }
+    const selezionata = num(); $('aFile').disabled = true;
+    try {
+      const nuove = await Promise.all(file.map(ridimensiona));
+      if (num() !== selezionata) { avviso('Hai cambiato casella durante il caricamento: seleziona di nuovo le foto.'); return; }
+      fotoAdmin.push(...nuove); fotoCambiata = true; mostraFotoAdmin();
+    } catch (e) { avviso('Una foto non è valida o è troppo grande. Prova con immagini diverse.'); }
+    finally { $('aFile').disabled = false; }
   };
-  $('aRimuovi').onclick = () => { fotoAdmin = null; fotoCambiata = true; $('aFile').value = ''; mostraFotoAdmin(); };
   $('aAnteprima').onclick = () => {
     const d = datiForm();
-    mostraCarta(+num(), d, d.tipo !== 'messaggio' ? fotoAdmin : null, true);
+    mostraCarta(+num(), d, d.tipo !== 'messaggio' ? fotoAdmin : [], true);
   };
-  /* messaggio e foto vengono scritti insieme in un'unica operazione atomica: o tutto o niente */
+  // Le foto vengono salvate in documenti distinti, nel medesimo batch della casella.
   $('aSalva').onclick = async () => {
     if (salvando) return;
     const n = num(), d = datiForm();
     if (d.bottoneLink && !/^https?:\/\//i.test(d.bottoneLink)) { avviso('L\'indirizzo del pulsante deve iniziare con https://'); return; }
-    if (d.tipo !== 'messaggio' && !fotoAdmin) { avviso('Questo tipo di sorpresa richiede una foto.'); return; }
-    salvando = true; $('aSalva').disabled = true;
+    if (d.tipo !== 'messaggio' && !fotoAdmin.length) { avviso('Questo tipo di sorpresa richiede almeno una foto.'); return; }
+    salvando = true; $('aSalva').disabled = true; $('aNum').disabled = true;
     try {
-      const b = S.writeBatch(db); let v = fotoV;
-      if (fotoCambiata) {
-        if (fotoAdmin) { v = Date.now(); b.set(rif('foto', n), { dati: fotoAdmin, v }); }
-        else { v = 0; if (fotoSuServer) b.delete(rif('foto', n)); }
+      const b = S.writeBatch(db); let v = fotoV, count = fotoCount;
+      const fotoAttive = d.tipo !== 'messaggio' ? fotoAdmin : [];
+      const cambiano = fotoCambiata || (d.tipo === 'messaggio' && fotoCount > 0) || (d.tipo === 'messaggio' && legacyFoto);
+      if (cambiano) {
+        v = Date.now(); count = fotoAttive.length;
+        fotoAttive.forEach((src, i) => b.set(rifFoto(n, i), { dati:src, v }));
+        for (let i=count; i<fotoCount; i++) b.delete(rifFoto(n,i));
+        if (legacyFoto) b.delete(rif('foto', n));
       }
-      const haFoto = d.tipo !== 'messaggio' && !!fotoAdmin;
-      b.set(rif('caselle', n), { ...d, haFoto, fotoV: v, aggiornatoIl: S.serverTimestamp() });
-      await conTimeout(b.commit(), 20000);
-      fotoV = v; fotoCambiata = false; fotoSuServer = !!fotoAdmin;
-      stato[n] = { ok: true, dati: { ...d, haFoto, fotoV: v } };
+      const haFoto = fotoAttive.length > 0;
+      b.set(rif('caselle', n), { ...d, haFoto, fotoV:v, fotoCount:count, aggiornatoIl:S.serverTimestamp() });
+      await conTimeout(b.commit(), 25000);
+      fotoV = v; fotoCount = count; fotoCambiata = false; legacyFoto = false;
+      stato[n] = { ok:true, dati:{ ...d, haFoto, fotoV:v, fotoCount:count } };
       avviso('Sorpresa salvata con successo!');
     } catch (e) {
-      avviso(e.code === 'permission-denied' ? 'Salvataggio negato: controlla le regole e il tuo UID.' : 'Salvataggio non confermato. Controlla la connessione e riprova.');
-    } finally { salvando = false; $('aSalva').disabled = false; }
+      console.error('Errore salvataggio',e);
+      avviso(e.code === 'permission-denied' ? 'Salvataggio negato: verifica le nuove regole Firestore.' : 'Salvataggio non confermato. Controlla la connessione e riprova.');
+    } finally { salvando = false; $('aSalva').disabled = false; $('aNum').disabled = false; }
   };
   $('tSalva').onclick = async () => {
     const c = { titoloBenvenuto: $('tTitoloB').value.trim(), fraseBenvenuto: $('tFraseB').value.trim(), titoloCal: $('tTitoloC').value.trim(), testoCal: $('tTestoC').value.trim() };

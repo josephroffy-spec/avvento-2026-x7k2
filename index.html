@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f3a2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Avvento">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Il nostro calendario dell'Avvento</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icona-180.png">
+<link rel="icon" href="icona-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&display=swap">
+<link rel="stylesheet" href="stile.css">
+</head>
+<body>
+<div id="banner" class="banner" hidden></div>
+<noscript><div class="banner">Per usare il calendario serve attivare JavaScript.</div></noscript>
+<script nomodule>document.write('<div class="banner">Il tuo browser è troppo vecchio: aggiornalo per aprire il calendario.</div>')</script>
+
+<section id="intro" class="scena">
+  <div class="neve" id="neve"></div>
+  <div class="sopra">Dicembre 2026</div>
+  <div class="titolo" id="titoloBenvenuto">Una sorpresa per te &#10084;&#65039;</div>
+  <div class="frase" id="fraseBenvenuto">Dietro questa porta ti aspetta qualcosa di speciale.</div>
+  <button class="scenaporta" id="btnPorta" aria-label="Apri la porta" style="background:none">
+    <div class="porta" id="porta">
+      <div class="luce"></div>
+      <div class="anta"><div class="ghirlanda"></div><div class="maniglia"></div></div>
+    </div>
+  </button>
+  <div class="tocca">Tocca per entrare</div>
+</section>
+
+<section id="cal" class="scena">
+  <div class="colonna">
+    <h1 id="titoloCal">Per te &#10084;&#65039;</h1>
+    <p class="intro" id="testoCal">Questo dicembre ogni giorno ti aspetta una sorpresa. 24 giorni in cui voglio ricordarti quanto sei speciale.</p>
+    <div class="mosaico" id="mosaico"></div>
+    <div class="piede" id="piede"></div>
+    <div class="nota" id="nota"></div>
+  </div>
+</section>
+
+<button id="ingranaggio" aria-label="Apri il pannello di amministrazione">&#9881;</button>
+
+<section id="admin" class="scena">
+  <div class="colonna" style="text-align:left">
+    <h1 style="font-size:28px;text-align:center;margin-bottom:16px">Pannello di amministrazione</h1>
+
+    <div class="blocco">
+      <h3>Modifica sorpresa</h3>
+      <label>Casella <select id="aNum" class="campo"></select></label>
+      <label>Titolo <input id="aTitolo" class="campo" maxlength="80"></label>
+      <label>Tipo di sorpresa
+        <select id="aTipo" class="campo">
+          <option value="messaggio">Solo messaggio</option>
+          <option value="foto">Solo foto</option>
+          <option value="foto_messaggio">Foto e messaggio</option>
+        </select>
+      </label>
+      <label>Messaggio <textarea id="aMessaggio" class="campo" rows="6" maxlength="3000"></textarea></label>
+      <label>Foto (dal telefono) <input type="file" id="aFile" accept="image/*" class="campo"></label>
+      <img id="aImg" class="prev" alt="Anteprima della foto" hidden>
+      <button id="aRimuovi" class="bottone piccolo chiaro" hidden>Rimuovi foto</button>
+      <label>Testo del pulsante (facoltativo) <input id="aBtnTesto" class="campo" maxlength="40"></label>
+      <label>Indirizzo del pulsante (https://...) <input id="aBtnLink" class="campo" inputmode="url" maxlength="300"></label>
+      <button id="aAnteprima" class="bottone piccolo chiaro">Anteprima</button>
+      <button id="aSalva" class="bottone piccolo">Salva modifiche</button>
+    </div>
+
+    <div class="blocco">
+      <h3>Testi principali</h3>
+      <label>Titolo della porta <input id="tTitoloB" class="campo" maxlength="80"></label>
+      <label>Frase sotto il titolo <input id="tFraseB" class="campo" maxlength="160"></label>
+      <label>Titolo del calendario <input id="tTitoloC" class="campo" maxlength="60"></label>
+      <label>Testo sopra il mosaico <textarea id="tTestoC" class="campo" rows="4" maxlength="400"></textarea></label>
+      <button id="tSalva" class="bottone piccolo">Salva testi</button>
+    </div>
+
+    <div class="blocco">
+      <h3>Invito per il suo iPhone</h3>
+      <p>Genera un codice monouso valido 6 giorni. Invia il codice soltanto a lei, in privato. Se cambia iPhone o cancella i dati di Safari, genera un nuovo invito.</p>
+      <button id="generaInvito" class="bottone piccolo" type="button">Genera codice di invito</button>
+      <p id="testoInvito" class="codice-invito" aria-live="polite"></p>
+      <button id="copiaInvito" class="bottone piccolo chiaro" type="button" hidden>Copia codice</button>
+      <p style="margin-top:10px">Dispositivi autorizzati:</p>
+      <div id="elencoDestinatari">Apri il pannello per caricare l'elenco.</div>
+    </div>
+
+    <div class="blocco">
+      <h3>Sorprese aperte</h3>
+      <div id="aAperture">Caricamento...</div>
+      <button id="aAggiorna" class="bottone piccolo chiaro">Aggiorna elenco</button>
+    </div>
+
+    <div style="text-align:center;padding-bottom:20px">
+      <button id="aTorna" class="bottone">Torna al calendario</button><br><br>
+      <button id="aEsci" class="bottone piccolo chiaro">Esci dall'account</button>
+    </div>
+  </div>
+</section>
+
+<section id="sorpresa" class="scena" aria-live="polite">
+  <div class="regalo" id="regalo"><div class="scatola"></div><div class="coperchio"></div></div>
+  <div class="carta" id="carta">
+    <small id="cData"></small>
+    <h2 id="cTitolo"></h2>
+    <img id="cFoto" alt="Foto della sorpresa" hidden>
+    <p id="cTesto"></p>
+    <a id="cLink" class="bottone" target="_blank" rel="noopener" hidden></a>
+    <button class="bottone" id="btnTorna">Torna al calendario</button>
+  </div>
+</section>
+
+<section id="accesso" class="scena">
+  <div class="carta entra">
+    <small>Accesso riservato</small>
+    <h2>Entra nel calendario</h2>
+    <div id="accessoScelte">
+      <p>Se sei la destinataria, puoi entrare senza email e password.</p>
+      <button id="btnDestinataria" class="bottone" type="button">Entra come destinataria</button>
+      <p style="margin:18px 0 8px">Se invece hai creato il calendario:</p>
+      <button id="btnAdminLogin" class="bottone piccolo chiaro" type="button">Accesso amministratore</button>
+    </div>
+    <div id="accessoInvito" hidden>
+      <p>Inserisci il codice privato ricevuto per autorizzare questo iPhone.</p>
+      <form id="formInvito">
+        <input id="codiceInvito" class="campo" type="text" placeholder="Codice di invito" maxlength="32" minlength="32" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" required>
+        <div class="errore" id="invitoErr"></div>
+        <button id="usaInvito" class="bottone" type="submit">Attiva il calendario</button>
+      </form>
+      <button id="tornaScelta" class="bottone piccolo chiaro" type="button">Indietro</button>
+    </div>
+    <form id="formAccesso" hidden>
+      <input id="lEmail" class="campo" type="email" placeholder="Email" autocomplete="username" required>
+      <input id="lPass" class="campo" type="password" placeholder="Password" autocomplete="current-password" required>
+      <div class="errore" id="lErr"></div>
+      <button class="bottone" type="submit">Entra</button>
+      <button id="tornaAccesso" class="bottone piccolo chiaro" type="button">Indietro</button>
+    </form>
+  </div>
+</section>
+
+<div id="avviso"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

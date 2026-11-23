@@ -176,6 +176,7 @@ function visualizzaFoto(foto) {
 }
 function riempi(n, d, foto) {
   $('quizInCarta').hidden = true; $('quizInCarta').replaceChildren();
+  resetSpoiler6();
   d = d || {};
   const tipo = d.tipo || 'messaggio';
   $('cData').textContent = n + ' dicembre 2026';
@@ -230,6 +231,7 @@ async function apri(n, el) {
     return;
   }
   mostraCarta(n, st.dati, null, false);
+  if (n === 6) mostraSpoiler6();
   if ([18,19,20].includes(n)) mostraQuiz(n);
   if (st.dati && st.dati.haFoto) {
     caricaFoto(n, st.dati).then((foto) => { if (cartaN === n && $('sorpresa').classList.contains('visibile')) visualizzaFoto(foto); }).catch(() => avviso('Non riesco a caricare le foto. Controlla la connessione.'));
@@ -446,6 +448,7 @@ function iniziaAdmin() {
   const sel = $('aNum');
   for (let n = 1; n <= 24; n++) { const o = document.createElement('option'); o.value = n; o.textContent = 'Giorno ' + n; sel.appendChild(o); }
   sel.onchange = caricaForm;
+  installaSpoilerAdmin();
   $('ingranaggio').onclick = async () => {
     if (!sonoAdmin()) return;
     $('admin').classList.add('visibile');
@@ -454,7 +457,7 @@ function iniziaAdmin() {
     $('tFraseB').value = c.fraseBenvenuto || $('fraseBenvenuto').textContent;
     $('tTitoloC').value = c.titoloCal || $('titoloCal').textContent;
     $('tTestoC').value = c.testoCal || $('testoCal').textContent;
-    caricaForm(); caricaAperture(); caricaDestinatari(); aggiornaQuizAdmin();
+    caricaForm(); caricaAperture(); caricaDestinatari(); aggiornaQuizAdmin(); caricaSpoilerAdmin();
   };
   $('aTorna').onclick = () => { anteprimaQuizVersione++; $('quizAnteprima').hidden = true; $('quizAnteprima').replaceChildren(); $('admin').classList.remove('visibile'); aggiornaClassi(); };
   $('aEsci').onclick = async () => { try { await A.signOut(auth); } catch (e) {} location.reload(); };
@@ -860,4 +863,170 @@ async function pubblicaRisultatoQuiz() {
     avviso('Risultato pubblicato: '+punteggio+'/15. Lei può vederlo nelle caselle del quiz.');
   } catch(e) { avviso('Pubblicazione non riuscita: verifica la connessione e le regole.'); }
   finally { $('quizPubblicaRisultato').disabled=false; }
+}
+
+/* ---------- Giorno 6: spoiler pixelato e gratta il cuore ----------
+   I dati sul server contengono solo la miniatura gia' pixelata.
+   Non c'e' alcuna scrittura durante il gioco: ogni apertura ricomincia da zero.
+*/
+const SPOILER_RIF = () => S.doc(db, 'spoiler6', 'config');
+let spoilerCaricatoAdmin = null, spoilerImmagineNuova = null, spoilerVersione = 0, spoilerInizializzato = false;
+function resetSpoiler6() {
+  spoilerVersione++;
+  const area = $('spoiler6');
+  if (!area) return;
+  area.hidden = true;
+  $('spoilerNascosto').hidden = true;
+  $('spoilerImmagine').hidden = true;
+  $('spoilerCanvas').hidden = false;
+  $('spoilerProgresso').textContent = 'Gratta il cuore con il dito';
+}
+// Foto rimpicciolita a 28x28 e poi ingrandita solo per la visualizzazione.
+// Pixelare *prima* del salvataggio impedisce di recuperare la foto nitida da Firestore.
+function preparaSpoilerPixelato(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/') || file.size > 15 * 1024 * 1024) return reject(new Error('Seleziona una foto valida inferiore a 15 MB.'));
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      try {
+        const canv = document.createElement('canvas'); canv.width = 28; canv.height = 28;
+        const ctx = canv.getContext('2d', { willReadFrequently: false });
+        ctx.fillStyle = '#f9edf0'; ctx.fillRect(0,0,28,28);
+        const ratio = Math.min(28/im.width,28/im.height);
+        const w=im.width*ratio, h=im.height*ratio;
+        ctx.drawImage(im,(28-w)/2,(28-h)/2,w,h);
+        const data=canv.toDataURL('image/jpeg',0.72);
+        if (data.length > 25000) throw new Error('Immagine non valida');
+        resolve(data);
+      } catch(e) { reject(e); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Immagine non leggibile')); };
+    im.src = url;
+  });
+}
+async function caricaSpoilerAdmin() {
+  if (!sonoAdmin()) return;
+  $('spoilerAdminMessaggio').textContent = 'Caricamento…';
+  try {
+    const d = await conTimeout(S.getDocFromServer(SPOILER_RIF()),12000);
+    spoilerCaricatoAdmin = d.exists() ? d.data() : null;
+    spoilerImmagineNuova = null;
+    $('spoilerAttivo').checked = !!spoilerCaricatoAdmin?.attivo;
+    $('spoilerFrase').value = spoilerCaricatoAdmin?.testo || '';
+    const anteprima = $('spoilerAdminImmagine');
+    anteprima.hidden = !spoilerCaricatoAdmin?.immagine;
+    if (spoilerCaricatoAdmin?.immagine) anteprima.src = spoilerCaricatoAdmin.immagine;
+    else anteprima.removeAttribute('src');
+    $('spoilerAdminMessaggio').textContent = spoilerCaricatoAdmin ? 'Spoiler caricato. Puoi modificarlo.' : 'Carica una foto e salva lo spoiler.';
+  } catch (e) { $('spoilerAdminMessaggio').textContent = 'Impossibile caricare lo spoiler da Firebase.'; }
+}
+function installaSpoilerAdmin() {
+  if (spoilerInizializzato) return; spoilerInizializzato = true;
+  $('spoilerFile').onchange = async () => {
+    const file = $('spoilerFile').files[0]; if (!file) return;
+    $('spoilerAdminMessaggio').textContent = 'Creo la versione pixelata…';
+    try {
+      spoilerImmagineNuova = await preparaSpoilerPixelato(file);
+      $('spoilerAdminImmagine').src = spoilerImmagineNuova;
+      $('spoilerAdminImmagine').hidden = false;
+      $('spoilerAdminMessaggio').textContent = 'Foto pixelata, pronta da salvare.';
+    } catch (e) { $('spoilerAdminMessaggio').textContent = e.message || 'Errore di caricamento'; }
+    finally { $('spoilerFile').value = ''; }
+  };
+  $('spoilerSalva').onclick = async () => {
+    if (!sonoAdmin()) return;
+    const immagine = spoilerImmagineNuova || spoilerCaricatoAdmin?.immagine || '';
+    const testo = $('spoilerFrase').value.trim();
+    const attivo = $('spoilerAttivo').checked;
+    if (attivo && (!immagine || !testo)) { $('spoilerAdminMessaggio').textContent = 'Per attivarlo servono sia una foto sia una frase.'; return; }
+    const b = $('spoilerSalva'); b.disabled = true;
+    try {
+      const d = { attivo, testo, immagine, aggiornatoIl: S.serverTimestamp() };
+      await conTimeout(S.setDoc(SPOILER_RIF(), d),18000);
+      spoilerCaricatoAdmin = { attivo, testo, immagine };
+      spoilerImmagineNuova = null;
+      $('spoilerAdminMessaggio').textContent = 'Spoiler del 6 dicembre salvato.';
+    } catch(e) { console.error('Spoiler6 salvataggio',e); $('spoilerAdminMessaggio').textContent = 'Salvataggio fallito. Verifica le regole Firebase e la connessione.'; }
+    finally { b.disabled = false; }
+  };
+  $('spoilerAnteprima').onclick = () => {
+    if (!sonoAdmin()) return;
+    const dati = {attivo: true, immagine: spoilerImmagineNuova || spoilerCaricatoAdmin?.immagine, testo: $('spoilerFrase').value.trim()};
+    if (!dati.immagine || !dati.testo) { $('spoilerAdminMessaggio').textContent='Carica prima la foto e scrivi il testo.'; return; }
+    const d = stato[6]?.dati || {titolo:'Sorpresa del 6 dicembre'};
+    // Non ricarichiamo le fotografie della casella: la prova dello spoiler e' locale.
+    $('admin').classList.remove('visibile');
+    mostraCarta(6,d,null,true);
+    disegnaSpoiler6(dati);
+  };
+}
+async function mostraSpoiler6() {
+  const token = spoilerVersione;
+  try {
+    const snap = await conTimeout(S.getDocFromServer(SPOILER_RIF()),12000);
+    if (token !== spoilerVersione || cartaN !== 6 || !$('sorpresa').classList.contains('visibile')) return;
+    if (!snap.exists() || !snap.data().attivo || !snap.data().immagine) return;
+    disegnaSpoiler6(snap.data());
+  } catch(e) { if(token === spoilerVersione) console.warn('Spoiler del giorno 6 non disponibile',e); }
+}
+function disegnaSpoiler6(d) {
+  const area=$('spoiler6'), cover=$('spoilerCanvas'), nascosto=$('spoilerNascosto'), img=$('spoilerImmagine');
+  if (!area || !d?.immagine) return;
+  area.hidden = false; nascosto.hidden = true;
+  img.src = d.immagine; img.hidden=false; $('spoilerTesto').textContent = d.testo || '';
+  cover.hidden = false; $('spoilerProgresso').textContent = 'Gratta il cuore con il dito';
+  const ctx=cover.getContext('2d',{willReadFrequently:true}), W=cover.width,H=cover.height;
+  ctx.clearRect(0,0,W,H);
+  const path=new Path2D();
+  path.moveTo(160,285);
+  path.bezierCurveTo(133,257,20,169,20,101);
+  path.bezierCurveTo(20,17,123,5,160,76);
+  path.bezierCurveTo(197,5,300,17,300,101);
+  path.bezierCurveTo(300,169,187,257,160,285);
+  path.closePath();
+  ctx.fillStyle='#a83a56';ctx.fill(path);
+  ctx.save(); ctx.clip(path);
+  ctx.fillStyle='rgba(255,255,255,.12)';
+  for(let k=0;k<35;k++){ctx.beginPath();ctx.arc((k*53)%W,(k*97)%H,2+(k%3),0,Math.PI*2);ctx.fill();}
+  ctx.restore();
+  ctx.save();ctx.fillStyle='#fff0d9';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.fillText('GRATTA QUI',160,155);ctx.restore();
+  const points=[];
+  for(let y=4;y<H;y+=5)for(let x=4;x<W;x+=5)if(ctx.isPointInPath(path,x,y))points.push([x,y]);
+  const identita=spoilerVersione;
+  let grattando=false, ultimo=null, rivelato=false, aggiornato=0;
+  function gratta(e){
+    const r=cover.getBoundingClientRect();
+    return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};
+  }
+  function percentuale(){
+    const pixel=ctx.getImageData(0,0,W,H).data;
+    let cancellati=0;
+    for (const [x,y] of points) if(pixel[(y*W+x)*4+3]<55)cancellati++;
+    return cancellati / points.length;
+  }
+  function verifica(){
+    if(rivelato || identita!==spoilerVersione)return;
+    const p=percentuale();
+    if(p>=0.9){
+      rivelato=true; cover.hidden=true; nascosto.hidden=false;
+      $('spoilerProgresso').textContent='Spoiler sbloccato! Riapri la casella per grattare di nuovo.';
+      cuori(10,area);
+    } else $('spoilerProgresso').textContent='Continua a grattare… '+Math.floor(p*100)+'%';
+  }
+  cover.onpointerdown=e=>{
+    if(rivelato || identita!==spoilerVersione)return;
+    grattando=true;ultimo=gratta(e);
+    try{cover.setPointerCapture(e.pointerId);}catch(_){}
+    e.preventDefault();
+  };
+  cover.onpointermove=e=>{
+    if(!grattando || rivelato || identita!==spoilerVersione)return;
+    const pos=gratta(e);
+    ctx.save();ctx.clip(path);ctx.globalCompositeOperation='destination-out';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=39;
+    ctx.beginPath();ctx.moveTo(ultimo.x,ultimo.y);ctx.lineTo(pos.x,pos.y);ctx.stroke();ctx.restore();
+    ultimo=pos;e.preventDefault();
+    const now=performance.now(); if(now-aggiornato>180){aggiornato=now;verifica();}
+  };
+  cover.onpointerup=cover.onpointercancel=e=>{if(!grattando)return;grattando=false;verifica();};
 }

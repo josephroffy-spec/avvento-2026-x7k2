@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icona-180.png">
 <link rel="icon" href="icona-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&display=swap">
-<link rel="stylesheet" href="stile.css?v=anteprima20261123a">
+<link rel="stylesheet" href="stile.css?v=gratta6-20261123a">
 </head>
 <body>
 <div id="banner" class="banner" hidden></div>
@@ -69,6 +69,17 @@
       <label>Indirizzo del pulsante (https://...) <input id="aBtnLink" class="campo" inputmode="url" maxlength="300"></label>
       <button id="aAnteprima" class="bottone piccolo chiaro">Anteprima</button>
       <button id="aSalva" class="bottone piccolo">Salva modifiche</button>
+    </div>
+
+    <div class="blocco" id="spoilerAdminPannello">
+      <h3>Gratta il cuore • 6 dicembre</h3>
+      <p class="aiuto-foto">Le fotografie normali della casella 6 rimangono separate. Carica qui l'immagine del regalo: verrà pixelata sul telefono prima di essere inviata a Firebase. L'originale non sarà salvato nel database.</p>
+      <label>Foto del regalo <input class="campo" id="spoilerFile" type="file" accept="image/*"></label>
+      <img id="spoilerAdminImmagine" alt="Anteprima pixelata" class="spoiler-admin-foto" hidden>
+      <label>Frase spoiler <textarea class="campo" id="spoilerFrase" maxlength="220" rows="3" placeholder="Ti lascio solo un piccolo indizio…"></textarea></label>
+      <label class="spoiler-check"><input type="checkbox" id="spoilerAttivo"> Attiva il gratta e vinci nella casella 6</label>
+      <div class="spoiler-admin-azioni"><button type="button" class="bottone piccolo" id="spoilerSalva">Salva lo spoiler</button><button type="button" class="bottone piccolo chiaro" id="spoilerAnteprima">Prova il cuore</button></div>
+      <p class="aiuto-foto" id="spoilerAdminMessaggio" aria-live="polite"></p>
     </div>
 
     <div class="blocco">
@@ -138,6 +149,18 @@
       <div id="cNavigazione" class="navigazione-foto" hidden><button id="cPrecedente" type="button" aria-label="Foto precedente">&#10094;</button><span id="cContatore" aria-live="polite"></span><button id="cSuccessiva" type="button" aria-label="Foto successiva">&#10095;</button></div>
     </div>
     <p id="cTesto"></p>
+    <div id="spoiler6" class="spoiler-card" hidden>
+      <h3>Gratta il cuore per scoprire un piccolo spoiler</h3>
+      <p class="spoiler-descrizione">Gratta quasi tutto il cuore per scoprire un indizio sul tuo regalo.</p>
+      <div class="spoiler-cuore" id="spoilerCuore">
+        <div class="spoiler-nascosto" id="spoilerNascosto" hidden>
+          <img id="spoilerImmagine" alt="Anteprima pixelata del regalo" hidden>
+          <p id="spoilerTesto"></p>
+        </div>
+        <canvas id="spoilerCanvas" width="320" height="320" aria-label="Gratta il cuore con il dito" role="img"></canvas>
+      </div>
+      <p id="spoilerProgresso" class="spoiler-avanzamento" aria-live="polite">Gratta il cuore con il dito</p>
+    </div>
     <div id="quizInCarta" class="quiz-area" hidden></div>
     <a id="cLink" class="bottone" target="_blank" rel="noopener" hidden></a>
     <button class="bottone" id="btnTorna">Torna al calendario</button>
@@ -174,6 +197,6 @@
 </section>
 
 <div id="avviso"></div>
-<script type="module" src="app.js?v=anteprima20261123a"></script>
+<script type="module" src="app.js?v=gratta6-20261123a"></script>
 </body>
 </html>

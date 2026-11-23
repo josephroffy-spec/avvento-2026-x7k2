@@ -169,3 +169,22 @@ body.admin #ingranaggio{display:block}
 .quiz-preview-navigazione { display:flex; flex-wrap:wrap; gap:8px; }
 .quiz-preview-navigazione button { flex:1 1 120px; }
 .quiz-preview button:disabled { opacity:.5; cursor:not-allowed; }
+
+
+/* Giorno 6: gratta il cuore, senza cambiare il mosaico. */
+.spoiler-card{margin:18px 0 22px;padding:16px 10px;border:1px solid #e5bbb6;border-radius:16px;background:#fff4ef;text-align:center;color:#5e2733;overflow:hidden}
+.spoiler-card h3{margin:0 0 8px;font-size:21px;line-height:1.3;color:#762e3e}
+.spoiler-card p.spoiler-descrizione{font-size:14px;margin:0 0 12px}
+.spoiler-cuore{width:min(100%,320px);aspect-ratio:1;margin:auto;position:relative;touch-action:none}
+.spoiler-cuore canvas{display:block;width:100%;height:100%;position:absolute;inset:0;touch-action:none;cursor:crosshair;z-index:2}
+.spoiler-nascosto{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:36px 42px;z-index:1;background:#f8e7e9;border-radius:18px}
+.spoiler-nascosto[hidden],.spoiler-cuore canvas[hidden]{display:none}
+.spoiler-nascosto img{width:min(85%,190px);height:140px;object-fit:contain;image-rendering:pixelated;border-radius:10px;background:#f2d9e3;margin:0}
+.spoiler-nascosto p{font-size:15px;line-height:1.3;margin:0;overflow-wrap:anywhere}
+.spoiler-avanzamento{font-size:13px!important;margin:8px 0 0!important;color:#783a46}
+.spoiler-admin-foto{display:block;width:140px;height:140px;object-fit:contain;image-rendering:pixelated;margin:12px auto;border-radius:12px;background:#f3e0e0}
+.spoiler-admin-foto[hidden]{display:none}
+.spoiler-admin-azioni{display:flex;gap:8px;flex-wrap:wrap}
+.spoiler-admin-azioni button{flex:1 1 130px}
+.spoiler-check{display:flex;align-items:center;gap:10px;margin:12px 0}
+.spoiler-check input{width:20px;height:20px}

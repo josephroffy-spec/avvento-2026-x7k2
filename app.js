@@ -175,6 +175,7 @@ function visualizzaFoto(foto) {
   indiceFoto = 0; mostraIndiceFoto();
 }
 function riempi(n, d, foto) {
+  $('quizInCarta').hidden = true; $('quizInCarta').replaceChildren();
   d = d || {};
   const tipo = d.tipo || 'messaggio';
   $('cData').textContent = n + ' dicembre 2026';
@@ -229,6 +230,7 @@ async function apri(n, el) {
     return;
   }
   mostraCarta(n, st.dati, null, false);
+  if ([18,19,20].includes(n)) mostraQuiz(n);
   if (st.dati && st.dati.haFoto) {
     caricaFoto(n, st.dati).then((foto) => { if (cartaN === n && $('sorpresa').classList.contains('visibile')) visualizzaFoto(foto); }).catch(() => avviso('Non riesco a caricare le foto. Controlla la connessione.'));
   }
@@ -452,11 +454,14 @@ function iniziaAdmin() {
     $('tFraseB').value = c.fraseBenvenuto || $('fraseBenvenuto').textContent;
     $('tTitoloC').value = c.titoloCal || $('titoloCal').textContent;
     $('tTestoC').value = c.testoCal || $('testoCal').textContent;
-    caricaForm(); caricaAperture(); caricaDestinatari();
+    caricaForm(); caricaAperture(); caricaDestinatari(); aggiornaQuizAdmin();
   };
   $('aTorna').onclick = () => { $('admin').classList.remove('visibile'); aggiornaClassi(); };
   $('aEsci').onclick = async () => { try { await A.signOut(auth); } catch (e) {} location.reload(); };
   $('aAggiorna').onclick = caricaAperture;
+  $('quizImporta').onclick = importaQuiz;
+  $('quizAggiornaRisposte').onclick = aggiornaQuizAdmin;
+  $('quizPubblicaRisultato').onclick = pubblicaRisultatoQuiz;
   $('generaInvito').onclick = generaInvito;
   $('copiaInvito').onclick = () => { if (ultimoInvito) navigator.clipboard.writeText(ultimoInvito).then(() => avviso('Codice copiato.')).catch(() => avviso('Seleziona il codice e copialo manualmente.')); };
   $('aFile').onchange = async () => {
@@ -531,3 +536,237 @@ async function inizializza() {
 const inizio = inizializza();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+
+/* ========== QUIZ A TRE GIORNI (18, 19, 20 dicembre) ========== */
+const QUIZ_GIORNI = [18,19,20];
+const quizDoc = (c, id) => S.doc(db, c, String(id));
+const quizStato = {};
+let risposteRevisionate = null;
+const hQuiz = (tag, testo, classe) => {
+  const e = document.createElement(tag);
+  if (testo !== undefined && testo !== null) e.textContent = String(testo);
+  if (classe) e.className = classe;
+  return e;
+};
+const messaggioQuiz = (m) => { $('quizImportMessaggio').textContent = m; };
+async function importaQuiz() {
+  if (!sonoAdmin()) return;
+  const file = $('quizImportFile').files[0];
+  if (!file) { messaggioQuiz('Seleziona prima il file JSON privato incluso nello ZIP.'); return; }
+  $('quizImporta').disabled = true;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data.parti || !data.soluzioni || data.versione !== 1) throw new Error('Formato non riconosciuto');
+    const tutte = [];
+    for (const day of QUIZ_GIORNI) {
+      const domande = data.parti[String(day)];
+      if (!Array.isArray(domande) || domande.length !== 5) throw new Error('Giorno ' + day + ': servono 5 domande');
+      for (const q of domande) {
+        if (!Number.isInteger(q.id) || q.id < 1 || q.id > 15 || typeof q.domanda !== 'string' || !['scelta','aperta'].includes(q.tipo)) throw new Error('Domanda non valida');
+        if (q.tipo === 'scelta' && (!Array.isArray(q.opzioni) || q.opzioni.length !== 4)) throw new Error('Opzioni mancanti');
+        if (q.tipo === 'scelta' && !['A','B','C','D'].includes(data.soluzioni[String(q.id)])) throw new Error('Soluzione mancante');
+        if (q.tipo === 'aperta' && typeof data.soluzioni[String(q.id)] !== 'string') throw new Error('Riferimento risposta aperta mancante');
+        tutte.push(q.id);
+      }
+    }
+    if (new Set(tutte).size !== 15) throw new Error('Numeri di domanda duplicati');
+    // Dopo che esistono risposte, non riscriviamo le domande e non invalidiamo il punteggio.
+    for (const giorno of QUIZ_GIORNI) {
+      const snap = await S.getDocFromServer(quizDoc('quizRisposte', giorno));
+      if (snap.exists()) throw new Error('Il quiz ha già risposte: importazione bloccata per non sovrascriverle.');
+    }
+    const batch = S.writeBatch(db);
+    for (const giorno of QUIZ_GIORNI) {
+      batch.set(quizDoc('quizParti', giorno), { domande: data.parti[String(giorno)], aggiornatoIl: S.serverTimestamp() });
+    }
+    batch.set(quizDoc('quizPrivato', 'soluzioni'), { chiavi: data.soluzioni, aggiornatoIl: S.serverTimestamp() });
+    await conTimeout(batch.commit(), 24000);
+    $('quizImportFile').value = '';
+    messaggioQuiz('Quiz configurato! Domande e soluzioni salvate in Firebase. Il file privato deve restare fuori da GitHub.');
+    avviso('Le tre parti del quiz sono state configurate.');
+  } catch (e) {
+    console.error('Importazione quiz',e);
+    messaggioQuiz('Importazione non riuscita: ' + (e.code === 'permission-denied' ? 'controlla le regole Firestore.' : e.message));
+  } finally { $('quizImporta').disabled = false; }
+}
+function mostraMessaggioQuiz(box, messaggio) {
+  box.replaceChildren(hQuiz('p', messaggio, 'quiz-stato'));
+}
+async function mostraQuiz(giorno) {
+  const box = $('quizInCarta');
+  box.hidden = false;
+  mostraMessaggioQuiz(box, 'Caricamento del quiz…');
+  const token = Symbol(); quizStato[giorno] = token;
+  try {
+    // Il server vieta la lettura delle domande future alla destinataria.
+    const [parteSnap,rispSnap] = await Promise.all([
+      conTimeout(S.getDocFromServer(quizDoc('quizParti', giorno)), 12000),
+      conTimeout(S.getDocFromServer(quizDoc('quizRisposte', giorno)), 12000)
+    ]);
+    if (quizStato[giorno] !== token || cartaN !== giorno || !$('sorpresa').classList.contains('visibile')) return;
+    if (!parteSnap.exists()) { mostraMessaggioQuiz(box, sonoAdmin() ? 'Quiz non configurato: importa il file privato dal pannello amministratore.' : 'Il quiz non è ancora disponibile.'); return; }
+    const domande = parteSnap.data().domande;
+    if (!Array.isArray(domande) || domande.length !== 5) throw new Error('Dati quiz incompleti');
+    box.replaceChildren();
+    box.appendChild(hQuiz('h3','Quanto mi conosci davvero?'));
+    box.appendChild(hQuiz('p', 'Parte ' + (QUIZ_GIORNI.indexOf(giorno)+1) + ' di 3 · Domande ' + domande[0].id + '–' + domande[4].id, 'quiz-stato'));
+    if (sonoAdmin()) {
+      box.appendChild(hQuiz('p','Modalità amministratore: le risposte sono visibili e correggibili dal pannello.', 'quiz-stato'));
+      return;
+    }
+    if (rispSnap.exists()) {
+      box.appendChild(hQuiz('p','Hai già completato questa parte. Le tue risposte sono state salvate.','quiz-stato'));
+      await mostraRisultatoQuiz(box);
+      return;
+    }
+    const form = document.createElement('form'); form.className = 'quiz-form';
+    const scelta = {};
+    let indice = 0;
+    const progresso = hQuiz('p','', 'quiz-stato');
+    const area = hQuiz('div');
+    const pulsante = hQuiz('button','Avanti', 'bottone piccolo'); pulsante.type = 'submit';
+    form.append(progresso, area, pulsante);
+    const disegna = () => {
+      const q=domande[indice]; area.replaceChildren();
+      progresso.textContent = 'Domanda ' + q.id + ' di 15';
+      area.appendChild(hQuiz('h4',q.domanda));
+      if (q.tipo === 'scelta') {
+        for (const [j,val] of q.opzioni.entries()) {
+          const lettera='ABCD'[j];
+          const label=hQuiz('label',null,'quiz-opzione');
+          const radio=document.createElement('input'); radio.type='radio';radio.name='risposta';radio.value=lettera;radio.checked=scelta[q.id]===lettera;
+          label.append(radio,document.createTextNode(' '+lettera+'. '+val)); area.appendChild(label);
+        }
+      } else {
+        const campo = document.createElement('textarea'); campo.className='campo';campo.rows=3;campo.maxLength=400;campo.placeholder='Scrivi la tua risposta';campo.value=scelta[q.id]||'';
+        campo.oninput=()=>scelta[q.id]=campo.value; area.appendChild(campo);
+      }
+      pulsante.textContent = indice === 4 ? 'Invia le cinque risposte' : 'Avanti';
+    };
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      const q=domande[indice];
+      if (q.tipo === 'scelta') scelta[q.id]=area.querySelector('input:checked')?.value||'';
+      else scelta[q.id]=(area.querySelector('textarea')?.value||'').trim();
+      if (!scelta[q.id]) { avviso('Rispondi prima di proseguire.'); return; }
+      if (indice < 4) { indice++; disegna(); return; }
+      pulsante.disabled=true;
+      try {
+        await conTimeout(S.setDoc(quizDoc('quizRisposte',giorno), { uid: utente.uid, risposte: Object.fromEntries(Object.entries(scelta).map(([k,v])=>[k,String(v).slice(0,400)])), inviatoIl:S.serverTimestamp() }), 17000);
+        mostraMessaggioQuiz(box,'Parte completata! Le risposte sono state salvate. Le soluzioni arriveranno alla fine della terza parte, dopo la correzione.');
+        await mostraRisultatoQuiz(box);
+      } catch (e) {
+        const salvato=await S.getDocFromServer(quizDoc('quizRisposte',giorno)).catch(()=>null);
+        if (salvato?.exists()) mostraMessaggioQuiz(box,'Le tue risposte risultano salvate correttamente.');
+        else { pulsante.disabled=false; avviso('Impossibile salvare le risposte. Controlla la connessione e riprova.'); }
+      }
+    };
+    box.append(form); disegna();
+  } catch (e) {
+    console.error('Quiz',e);
+    if (quizStato[giorno] === token && cartaN===giorno) mostraMessaggioQuiz(box,'Impossibile caricare il quiz. Controlla la connessione o le regole Firebase.');
+  }
+}
+async function mostraRisultatoQuiz(box) {
+  if (sonoAdmin()) return;
+  try {
+    const snap=await S.getDocFromServer(quizDoc('quizRisultati','finale'));
+    if (!snap.exists() || !snap.data().pubblicato || snap.data().uid !== utente.uid) return;
+    const ris=snap.data();
+    const area=hQuiz('section',null,'quiz-risultato');
+    area.appendChild(hQuiz('h3','Il risultato finale: '+ris.punteggio+' / 15'));
+    area.appendChild(hQuiz('p','Ecco le risposte corrette, dopo tutti e tre i giorni.'));
+    for (const r of ris.dettagli||[]) {
+      const card=hQuiz('div',null,'quiz-risposta');
+      card.appendChild(hQuiz('strong',r.id+'. '+r.domanda));
+      card.appendChild(hQuiz('p','La tua risposta: '+(r.risposta||'—')));
+      card.appendChild(hQuiz('p',r.corretta?'Corretta':'Non corretta'));
+      if (!r.corretta) card.appendChild(hQuiz('p','Risposta prevista: '+r.soluzione));
+      area.appendChild(card);
+    }
+    box.appendChild(area);
+  } catch (e) { /* Nessun risultato finche' l'admin non lo pubblica. */ }
+}
+let cacheQuizCorrezione=null;
+async function aggiornaQuizAdmin() {
+  if (!sonoAdmin()) return;
+  const box=$('quizCorrezioni'); box.replaceChildren(hQuiz('p','Caricamento…'));
+  $('quizPubblicaRisultato').hidden=true;
+  try {
+    const [p18,p19,p20,r18,r19,r20,sol,giudiziSnap] = await Promise.all([
+      ...QUIZ_GIORNI.map(n=>S.getDocFromServer(quizDoc('quizParti',n))),
+      ...QUIZ_GIORNI.map(n=>S.getDocFromServer(quizDoc('quizRisposte',n))),
+      S.getDocFromServer(quizDoc('quizPrivato','soluzioni')),
+      S.getDocFromServer(quizDoc('quizValutazione','manuale'))
+    ]);
+    const p=[p18,p19,p20], r=[r18,r19,r20];
+    box.replaceChildren();
+    if (p.some(s=>!s.exists()) || !sol.exists()) { box.appendChild(hQuiz('p','Quiz da configurare: importa il file JSON privato.')); return; }
+    if (r.some(s=>!s.exists())) {
+      const fatte=r.filter(s=>s.exists()).length;
+      box.appendChild(hQuiz('p','Parti completate da lei: '+fatte+' su 3. Le soluzioni rimangono nascoste fino alla conclusione.'));
+      return;
+    }
+    if (new Set(r.map(s=>s.data().uid)).size!==1) { box.appendChild(hQuiz('p','Le parti risultano inviate da UID diversi: verifica gli accessi prima di correggere.'));return; }
+    const uid=r[0].data().uid;
+    const risposte=Object.assign({},...r.map(s=>s.data().risposte));
+    const domande=p.flatMap(s=>s.data().domande);
+    const chiavi=sol.data().chiavi;
+    const giudizi=giudiziSnap.exists() ? (giudiziSnap.data().giudizi || {}) : {};
+    cacheQuizCorrezione={uid,risposte,domande,chiavi,giudizi};
+    box.appendChild(hQuiz('p','Tutte le parti sono state consegnate. Correggi le tre domande aperte:'));
+    for (const q of domande.filter(q=>q.tipo==='aperta')) {
+      const blocco=hQuiz('div',null,'quiz-correggi');
+      blocco.appendChild(hQuiz('strong',q.id+'. '+q.domanda));
+      blocco.appendChild(hQuiz('p','Risposta di lei: '+(risposte[q.id]||'—')));
+      blocco.appendChild(hQuiz('p','Risposta di riferimento: '+chiavi[q.id]));
+      const select=document.createElement('select');select.className='campo';
+      for (const [value,label] of [['','Da correggere'],['si','Corretta'],['no','Sbagliata']]) { const opt=new Option(label,value);select.appendChild(opt); }
+      select.value=giudizi[q.id]===true?'si':giudizi[q.id]===false?'no':'';
+      select.onchange=async()=>{
+        if (!select.value) return;
+        const nuovo={...cacheQuizCorrezione.giudizi,[String(q.id)]:select.value==='si'};
+        select.disabled=true;
+        try {
+          await S.setDoc(quizDoc('quizValutazione','manuale'),{giudizi:nuovo,aggiornatoIl:S.serverTimestamp()});
+          cacheQuizCorrezione.giudizi=nuovo; avviso('Correzione salvata.');
+        } catch(e) { select.value='';avviso('Non riesco a salvare la correzione.'); }
+        finally { select.disabled=false; aggiornaStatoPubblicazione(); }
+      };
+      blocco.appendChild(select);box.appendChild(blocco);
+    }
+    $('quizPubblicaRisultato').hidden=false;
+    aggiornaStatoPubblicazione();
+  } catch(e) {
+    console.error('Revisione quiz',e);
+    box.replaceChildren(hQuiz('p','Impossibile caricare le risposte. Controlla le regole Firebase e la connessione.'));
+  }
+}
+function aggiornaStatoPubblicazione() {
+  const c=cacheQuizCorrezione;
+  if (!c) return;
+  const aperte=c.domande.filter(q=>q.tipo==='aperta');
+  $('quizPubblicaRisultato').disabled=!aperte.every(q=>typeof c.giudizi[String(q.id)]==='boolean');
+}
+async function pubblicaRisultatoQuiz() {
+  if (!sonoAdmin() || !cacheQuizCorrezione) return;
+  const c=cacheQuizCorrezione;
+  if (c.domande.filter(q=>q.tipo==='aperta').some(q=>typeof c.giudizi[String(q.id)]!=='boolean')) { avviso('Correggi prima tutte le risposte aperte.'); return; }
+  if (!confirm('Pubblicare il risultato finale e mostrare tutte le soluzioni alla destinataria?')) return;
+  const dettagli=c.domande.map(q=>{
+    const response=c.risposte[String(q.id)]||'';
+    const lettera=c.chiavi[String(q.id)];
+    const corretta=q.tipo==='aperta' ? c.giudizi[String(q.id)] : response===lettera;
+    const soluzione=q.tipo==='aperta' ? lettera : q.opzioni['ABCD'.indexOf(lettera)];
+    const testo=q.tipo==='aperta' ? response : q.opzioni['ABCD'.indexOf(response)] || response;
+    return {id:q.id,domanda:q.domanda,risposta:testo,corretta,soluzione};
+  });
+  const punteggio=dettagli.filter(x=>x.corretta).length;
+  $('quizPubblicaRisultato').disabled=true;
+  try {
+    await conTimeout(S.setDoc(quizDoc('quizRisultati','finale'), {uid:c.uid, pubblicato:true, punteggio, dettagli, pubblicatoIl:S.serverTimestamp()}), 18000);
+    avviso('Risultato pubblicato: '+punteggio+'/15. Lei può vederlo nelle caselle del quiz.');
+  } catch(e) { avviso('Pubblicazione non riuscita: verifica la connessione e le regole.'); }
+  finally { $('quizPubblicaRisultato').disabled=false; }
+}

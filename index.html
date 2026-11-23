@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icona-180.png">
 <link rel="icon" href="icona-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&display=swap">
-<link rel="stylesheet" href="stile.css?v=fix20261122b">
+<link rel="stylesheet" href="stile.css?v=quiz20261123a">
 </head>
 <body>
 <div id="banner" class="banner" hidden></div>
@@ -90,6 +90,21 @@
       <div id="elencoDestinatari">Apri il pannello per caricare l'elenco.</div>
     </div>
 
+
+    <div class="blocco" id="quizAdminPannello">
+      <h3>Quiz «Quanto mi conosci?»</h3>
+      <p>Tre parti nelle caselle 18, 19 e 20. Le risposte corrette restano protette in Firebase e non vengono pubblicate su GitHub.</p>
+      <label>Carica il file privato del quiz (una volta soltanto)
+        <input id="quizImportFile" type="file" accept=".json,application/json" class="campo">
+      </label>
+      <button id="quizImporta" type="button" class="bottone piccolo">Configura le 3 parti del quiz</button>
+      <p id="quizImportMessaggio" class="quiz-stato" aria-live="polite"></p>
+      <button id="quizAggiornaRisposte" type="button" class="bottone piccolo chiaro">Leggi risposte e correggi</button>
+      <div id="quizCorrezioni" class="quiz-correzioni"></div>
+      <button id="quizPubblicaRisultato" type="button" class="bottone piccolo" hidden>Pubblica risultato finale</button>
+      <p class="aiuto-foto">Il risultato sarà visibile a lei soltanto dopo che avrà consegnato tutte e tre le parti e tu avrai valutato le risposte aperte.</p>
+    </div>
+
     <div class="blocco">
       <h3>Sorprese aperte</h3>
       <div id="aAperture">Caricamento...</div>
@@ -113,6 +128,7 @@
       <div id="cNavigazione" class="navigazione-foto" hidden><button id="cPrecedente" type="button" aria-label="Foto precedente">&#10094;</button><span id="cContatore" aria-live="polite"></span><button id="cSuccessiva" type="button" aria-label="Foto successiva">&#10095;</button></div>
     </div>
     <p id="cTesto"></p>
+    <div id="quizInCarta" class="quiz-area" hidden></div>
     <a id="cLink" class="bottone" target="_blank" rel="noopener" hidden></a>
     <button class="bottone" id="btnTorna">Torna al calendario</button>
   </div>
@@ -148,6 +164,6 @@
 </section>
 
 <div id="avviso"></div>
-<script type="module" src="app.js?v=fix20261122b"></script>
+<script type="module" src="app.js?v=quiz20261123a"></script>
 </body>
 </html>

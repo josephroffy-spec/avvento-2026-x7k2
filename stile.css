@@ -142,3 +142,18 @@ body.admin #ingranaggio{display:block}
 .foto-admin-azioni button{min-width:38px;min-height:38px;font-size:20px}
 .foto-admin-azioni button:disabled{opacity:.3}
 .aiuto-foto{font-size:13px;line-height:1.4;color:#f3ddd2;margin:6px 0 10px;grid-column:1/-1}
+
+
+/* Quiz: si integra nella carta della sorpresa senza cambiare il mosaico. */
+.quiz-area { margin: 16px 0 22px; text-align:left; }
+.quiz-area h3 { font-size:21px; margin:8px 0; }
+.quiz-area h4 { font-size:18px; line-height:1.45; margin:14px 0; }
+.quiz-stato { font-size:14px; opacity:.82; line-height:1.5; }
+.quiz-form { display:flex; flex-direction:column; gap:12px; }
+.quiz-opzione { display:flex; gap:9px; align-items:flex-start; padding:12px; border:1px solid #cfb5a8; background:#fffaf5; color:#49252c; border-radius:12px; margin:8px 0; cursor:pointer; font-size:15px; line-height:1.4; }
+.quiz-opzione:has(input:checked) { border:2px solid #9e344d; background:#fff0f2; }
+.quiz-opzione input { flex:none; margin-top:3px; accent-color:#a0344d; }
+.quiz-correggi,.quiz-risposta { padding:12px; border-radius:12px; background:rgba(255,255,255,.12); margin:10px 0; overflow-wrap:anywhere; }
+.quiz-risposta { color:#482a31; background:#fff6ee; }
+.quiz-correggi p,.quiz-risposta p { margin:6px 0; font-size:14px; }
+.quiz-risultato { margin-top:20px; border-top:1px solid #d8b9b4; padding-top:12px; }

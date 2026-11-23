@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icona-180.png">
 <link rel="icon" href="icona-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,500&display=swap">
-<link rel="stylesheet" href="stile.css?v=quiz20261123a">
+<link rel="stylesheet" href="stile.css?v=anteprima20261123a">
 </head>
 <body>
 <div id="banner" class="banner" hidden></div>
@@ -99,6 +99,16 @@
       </label>
       <button id="quizImporta" type="button" class="bottone piccolo">Configura le 3 parti del quiz</button>
       <p id="quizImportMessaggio" class="quiz-stato" aria-live="polite"></p>
+      <div class="quiz-anteprima-controlli" aria-label="Anteprima del quiz per amministratore">
+        <h4>Anteprima privata (senza salvataggi)</h4>
+        <p class="quiz-stato">Puoi provare tutte le domande anche prima del 18 dicembre. Le risposte di prova non vengono inviate a Firebase e non influenzano il punteggio di lei.</p>
+        <div class="quiz-anteprima-giorni">
+          <button type="button" class="bottone piccolo chiaro" data-quiz-preview="18">Prova parte 1 (18 dicembre)</button>
+          <button type="button" class="bottone piccolo chiaro" data-quiz-preview="19">Prova parte 2 (19 dicembre)</button>
+          <button type="button" class="bottone piccolo chiaro" data-quiz-preview="20">Prova parte 3 (20 dicembre)</button>
+        </div>
+        <div id="quizAnteprima" class="quiz-area quiz-preview" aria-live="polite" hidden></div>
+      </div>
       <button id="quizAggiornaRisposte" type="button" class="bottone piccolo chiaro">Leggi risposte e correggi</button>
       <div id="quizCorrezioni" class="quiz-correzioni"></div>
       <button id="quizPubblicaRisultato" type="button" class="bottone piccolo" hidden>Pubblica risultato finale</button>
@@ -164,6 +174,6 @@
 </section>
 
 <div id="avviso"></div>
-<script type="module" src="app.js?v=quiz20261123a"></script>
+<script type="module" src="app.js?v=anteprima20261123a"></script>
 </body>
 </html>

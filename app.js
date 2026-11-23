@@ -456,9 +456,10 @@ function iniziaAdmin() {
     $('tTestoC').value = c.testoCal || $('testoCal').textContent;
     caricaForm(); caricaAperture(); caricaDestinatari(); aggiornaQuizAdmin();
   };
-  $('aTorna').onclick = () => { $('admin').classList.remove('visibile'); aggiornaClassi(); };
+  $('aTorna').onclick = () => { anteprimaQuizVersione++; $('quizAnteprima').hidden = true; $('quizAnteprima').replaceChildren(); $('admin').classList.remove('visibile'); aggiornaClassi(); };
   $('aEsci').onclick = async () => { try { await A.signOut(auth); } catch (e) {} location.reload(); };
   $('aAggiorna').onclick = caricaAperture;
+  document.querySelectorAll('[data-quiz-preview]').forEach(b => { b.onclick = () => apriAnteprimaQuiz(Number(b.dataset.quizPreview)); });
   $('quizImporta').onclick = importaQuiz;
   $('quizAggiornaRisposte').onclick = aggiornaQuizAdmin;
   $('quizPubblicaRisultato').onclick = pubblicaRisultatoQuiz;
@@ -537,6 +538,96 @@ const inizio = inizializza();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
+
+/* L'anteprima è isolata: legge soltanto quizParti, NON salva né consulta le soluzioni. */
+let anteprimaQuizVersione = 0;
+const anteprimaQuizRisposte = new Map();
+async function apriAnteprimaQuiz(giorno) {
+  if (!sonoAdmin() || ![18,19,20].includes(giorno)) return;
+  const box = $('quizAnteprima');
+  if (!box || !$('admin').classList.contains('visibile')) return;
+  const versione = ++anteprimaQuizVersione;
+  box.hidden = false;
+  box.replaceChildren(hQuiz('p', 'Caricamento anteprima…', 'quiz-stato'));
+  try {
+    // Lettura autorizzata all'amministratore, anche prima delle date di sblocco.
+    const snap = await conTimeout(S.getDocFromServer(quizDoc('quizParti', giorno)), 14000);
+    if (versione !== anteprimaQuizVersione || !$('admin').classList.contains('visibile')) return;
+    if (!snap.exists() || !Array.isArray(snap.data().domande) || snap.data().domande.length !== 5) {
+      box.replaceChildren(hQuiz('p', 'Questa parte non è stata configurata correttamente su Firebase.', 'quiz-stato'));
+      return;
+    }
+    disegnaAnteprimaQuiz(giorno, snap.data().domande, versione);
+  } catch (errore) {
+    if (versione !== anteprimaQuizVersione) return;
+    console.error('Anteprima quiz', errore);
+    box.replaceChildren(hQuiz('p', 'Impossibile caricare la parte. Verifica la connessione e le regole Firebase.', 'quiz-stato'));
+  }
+}
+function disegnaAnteprimaQuiz(giorno, domande, versione) {
+  const box = $('quizAnteprima');
+  box.replaceChildren();
+  const intestazione = hQuiz('div', null, 'quiz-preview-intestazione');
+  intestazione.appendChild(hQuiz('h3', 'Quanto mi conosci davvero?'));
+  intestazione.appendChild(hQuiz('p', 'Anteprima privata · Parte ' + ([18,19,20].indexOf(giorno)+1) + ' di 3 · Nessun salvataggio', 'quiz-stato'));
+  const chiudi = hQuiz('button', 'Chiudi anteprima', 'bottone piccolo chiaro');
+  chiudi.type='button';
+  chiudi.onclick=()=>{ anteprimaQuizVersione++; anteprimaQuizRisposte.clear(); box.replaceChildren(); box.hidden=true; };
+  intestazione.appendChild(chiudi);
+  box.appendChild(intestazione);
+  const form = hQuiz('form', null, 'quiz-form');
+  const progresso = hQuiz('p', null, 'quiz-stato');
+  const area = hQuiz('div');
+  const comandi = hQuiz('div', null, 'quiz-preview-navigazione');
+  const indietro = hQuiz('button', 'Indietro', 'bottone piccolo chiaro'); indietro.type='button';
+  const avanti = hQuiz('button', 'Avanti', 'bottone piccolo'); avanti.type='submit';
+  const ricomincia = hQuiz('button', 'Ricomincia la prova', 'bottone piccolo chiaro'); ricomincia.type='button';
+  comandi.append(indietro, avanti, ricomincia);
+  form.append(progresso,area,comandi);
+  box.appendChild(form);
+  let indice = 0;
+  let risposte = {};
+  const salvaLocale = () => {
+    const q=domande[indice];
+    if (q.tipo==='scelta') risposte[q.id]=area.querySelector('input:checked')?.value || '';
+    else risposte[q.id]=(area.querySelector('textarea')?.value || '').trim();
+  };
+  const disegna = () => {
+    if (versione!==anteprimaQuizVersione) return;
+    const q=domande[indice]; area.replaceChildren();
+    progresso.textContent='Domanda '+q.id+' di 15 · '+(indice+1)+'/5 di questa parte';
+    area.appendChild(hQuiz('h4',q.domanda));
+    if (q.tipo==='scelta') {
+      (q.opzioni||[]).forEach((val,j)=>{
+        const lettera='ABCD'[j],label=hQuiz('label',null,'quiz-opzione');
+        const radio=document.createElement('input'); radio.type='radio';radio.name='anteprima-'+giorno+'-'+q.id;radio.value=lettera;
+        radio.checked=risposte[q.id]===lettera;
+        label.append(radio,document.createTextNode(' '+lettera+'. '+val));area.appendChild(label);
+      });
+    } else {
+      const campo=hQuiz('textarea',null,'campo');campo.rows=3;campo.maxLength=400;
+      campo.placeholder='Scrivi la tua risposta';campo.value=risposte[q.id]||'';area.appendChild(campo);
+    }
+    indietro.disabled=indice===0;
+    avanti.textContent=indice===4?'Termina prova':'Avanti';
+  };
+  indietro.onclick=()=>{ salvaLocale(); if(indice>0)indice--;disegna(); };
+  ricomincia.onclick=()=>{risposte={};indice=0;disegna();};
+  form.onsubmit=(event)=>{
+    event.preventDefault();
+    if (versione!==anteprimaQuizVersione) return;
+    salvaLocale();
+    if (!risposte[domande[indice].id]) { avviso('Rispondi prima di proseguire.');return; }
+    if (indice<4) {indice++;disegna();return;}
+    // Risposte temporanee: soltanto in questa sessione JavaScript.
+    form.replaceChildren(hQuiz('h3', 'Prova completata!'));
+    form.appendChild(hQuiz('p','Hai provato tutte le cinque domande della parte '+([18,19,20].indexOf(giorno)+1)+'. Nessuna risposta è stata salvata o inviata.','quiz-stato'));
+    const diNuovo=hQuiz('button','Ricomincia la prova','bottone piccolo chiaro');diNuovo.type='button';
+    diNuovo.onclick=()=>{risposte={};indice=0;form.replaceChildren(progresso,area,comandi);disegna();};
+    form.appendChild(diNuovo);
+  };
+  disegna();
+}
 
 /* ========== QUIZ A TRE GIORNI (18, 19, 20 dicembre) ========== */
 const QUIZ_GIORNI = [18,19,20];

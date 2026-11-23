@@ -157,3 +157,15 @@ body.admin #ingranaggio{display:block}
 .quiz-risposta { color:#482a31; background:#fff6ee; }
 .quiz-correggi p,.quiz-risposta p { margin:6px 0; font-size:14px; }
 .quiz-risultato { margin-top:20px; border-top:1px solid #d8b9b4; padding-top:12px; }
+
+/* Anteprima quiz amministratore: stessa grafica, nessuna scrittura. */
+.quiz-anteprima-controlli { margin:20px 0; border-top:1px solid rgba(255,255,255,.25); padding-top:16px; }
+.quiz-anteprima-controlli h4 { color:#f7de9e; margin:0 0 8px; }
+.quiz-anteprima-giorni { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+.quiz-anteprima-giorni button { flex:1 1 170px; }
+.quiz-preview { padding:16px; border-radius:15px; border:1px solid rgba(255,255,255,.27); background:rgba(0,0,0,.12); }
+.quiz-preview-intestazione { margin-bottom:14px; }
+.quiz-preview-intestazione button { margin-top:9px; }
+.quiz-preview-navigazione { display:flex; flex-wrap:wrap; gap:8px; }
+.quiz-preview-navigazione button { flex:1 1 120px; }
+.quiz-preview button:disabled { opacity:.5; cursor:not-allowed; }

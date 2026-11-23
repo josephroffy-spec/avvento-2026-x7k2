@@ -188,3 +188,19 @@ body.admin #ingranaggio{display:block}
 .spoiler-admin-azioni button{flex:1 1 130px}
 .spoiler-check{display:flex;align-items:center;gap:10px;margin:12px 0}
 .spoiler-check input{width:20px;height:20px}
+
+/* FIX 23/11/2026: finestra sorpresa scorrevole anche con gallerie e gratta e vinci. */
+#sorpresa {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+#sorpresa > .carta {
+  flex-shrink: 0;
+  margin-top: auto;
+  margin-bottom: auto;
+}

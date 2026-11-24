@@ -1,0 +1,30 @@
+/* Giorno 13: stile isolato, senza alterare le altre caselle */
+.p13-area{margin:24px 0;padding:20px 12px;border:1px solid #dec3bd;border-radius:22px;background:#fff3f0;text-align:center;color:#6d2639;box-sizing:border-box}
+.p13-area h3{font-size:clamp(21px,5vw,28px);margin:8px 0 12px;color:#76243a}
+.p13-area .p13-desc{font-size:15px;line-height:1.55;margin:0 0 18px}
+.p13-board{width:min(100%,340px);aspect-ratio:1/1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:3px;margin:10px auto 15px;border:5px solid #a83a56;border-radius:10px;overflow:hidden;background:#a83a56;box-sizing:border-box;touch-action:manipulation}
+.p13-tile{display:block;min-width:0;min-height:0;appearance:none;border:0;border-radius:2px;padding:0;background-image:url('./foto-puzzle13.jpg');background-size:300% 300%;background-repeat:no-repeat;cursor:pointer;touch-action:manipulation;transition:filter .15s,outline .15s}
+.p13-tile.sc elto{outline:0}
+.p13-tile.scelto{outline:4px solid #f7d073;outline-offset:-4px;filter:brightness(1.2)}
+.p13-tile.finito{cursor:default}
+.p13-info{font-size:13px;min-height:1.8em;color:#81485a;margin:8px 0}
+.p13-area .bottone{margin:10px auto}
+.p13-vittoria{padding:18px 8px 8px;animation:p13appear .6s ease both}
+.p13-vittoria h3{color:#9d314c}
+.p13-timeline{margin:15px auto 5px;max-width:450px;text-align:left;animation:p13appear .6s ease both}
+.p13-tappa{display:grid;grid-template-columns:36px 1fr;gap:12px;position:relative;padding-bottom:24px}
+.p13-tappa:not(:last-child):before{content:'';position:absolute;left:17px;top:34px;bottom:0;width:2px;background:#d6a2b0}
+.p13-num{position:relative;z-index:1;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#982d4a;color:#fff;font-weight:bold}
+.p13-tappa-content{min-width:0;background:#fffaf8;border:1px solid #e7cdd1;border-radius:14px;padding:14px}
+.p13-tappa h4{margin:0 0 3px;font-size:18px;color:#7d2940}
+.p13-tappa small{color:#875d63}
+.p13-tappa p{margin:10px 0 0;font-size:15px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.p13-tappa img{width:100%;height:auto;max-height:350px;object-fit:contain;border-radius:10px;margin:10px 0 0;display:block}
+.p13-admin .p13-fieldset{margin:15px 0;padding:12px;border:1px solid #d3b4ba;border-radius:12px;min-width:0}
+.p13-admin legend{font-weight:bold;padding:0 5px}
+.p13-admin label{display:block;margin:10px 0;font-size:14px}
+.p13-admin label .campo{display:block;width:100%;max-width:100%;box-sizing:border-box;margin-top:5px}
+.p13-admin-thumb{display:block;max-width:150px;max-height:140px;object-fit:contain;margin:8px 0;border-radius:6px}
+.p13-admin-thumb[hidden],.p13-area[hidden],#p13AdminPanel[hidden],#p13AdminPreview[hidden]{display:none!important}
+#p13AdminStatus{font-size:14px;min-height:1.8em}
+@keyframes p13appear{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}

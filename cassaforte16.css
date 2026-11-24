@@ -1,0 +1,24 @@
+/* Stili isolati della cassaforte del giorno 16. */
+.c16-area{margin:24px 0;padding:20px 14px;border:1px solid #dec3bd;border-radius:22px;background:#fff3f0;color:#6d2639;text-align:center;box-sizing:border-box;overflow-wrap:anywhere}
+.c16-area h3{color:#76243a;font-size:clamp(21px,5vw,27px);margin:6px 0 14px}
+.c16-area h4{margin:16px 0 8px;color:#76243a}
+.c16-area p{line-height:1.5;white-space:pre-wrap}
+.c16-hint{padding:10px;border-radius:9px;background:#fffdfa}
+.c16-form{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin:14px auto;max-width:420px}
+.c16-form .campo{width:100%;min-width:0;box-sizing:border-box}
+.c16-code{font-size:26px!important;text-align:center;letter-spacing:.4em;font-variant-numeric:tabular-nums}
+.c16-area img{display:block;max-width:100%;height:auto;max-height:420px;object-fit:contain;margin:16px auto;border-radius:12px}
+.c16-reward-text{font-size:17px;white-space:pre-wrap;line-height:1.65;padding:14px 4px}
+.c16-status{font-size:14px;color:#85495b;min-height:1.7em}
+.c16-area .bottone{margin:8px auto}
+.c16-admin label{display:block;margin:12px 0}
+.c16-admin .campo{display:block;max-width:100%;width:100%;box-sizing:border-box;margin:5px 0}
+.c16-admin .c16-check{display:flex;align-items:center;gap:8px}
+.c16-admin .c16-check input{width:auto}
+.c16-admin h4{margin:20px 0 8px}
+.c16-admin .c16-thumb{display:block;max-width:180px;max-height:160px;object-fit:contain;border-radius:10px;margin:8px 0}
+.c16-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.c16-response{border:1px solid #dcbabd;padding:13px;border-radius:12px;margin:12px 0}
+.c16-answer{white-space:pre-wrap;background:#fff9f6;padding:9px;border-radius:8px}
+.c16-response .bottone{margin:5px 5px 5px 0}
+#c16Area[hidden],#c16AdminPanel[hidden],#c16PreviewHost[hidden],.c16-thumb[hidden]{display:none!important}
